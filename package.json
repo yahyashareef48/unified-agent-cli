@@ -3,6 +3,11 @@
   "displayName": "Unified Agent CLI",
   "description": "",
   "version": "0.0.1",
+  "icon": "media/logo.png",
+  "galleryBanner": {
+    "color": "#0E0F1A",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.120.0"
   },
@@ -15,9 +20,21 @@
     "commands": [
       {
         "command": "unified-agent-cli.open",
-        "title": "Open Unified Agent CLI"
+        "title": "Open Unified Agent CLI",
+        "icon": {
+          "light": "media/logo.svg",
+          "dark": "media/logo.svg"
+        }
       }
-    ]
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "unified-agent-cli.open",
+          "group": "navigation@99"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

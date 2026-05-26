@@ -6,14 +6,21 @@ import { ALL_AGENTS } from './shared/agents';
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand('unified-agent-cli.open', () => {
+    const mediaRoot = vscode.Uri.joinPath(context.extensionUri, 'media');
     const panel = vscode.window.createWebviewPanel(
       'unifiedAgentCli',
       'Unified Agent CLI',
       vscode.ViewColumn.One,
-      { enableScripts: true }
+      { enableScripts: true, localResourceRoots: [mediaRoot] }
     );
 
-    panel.webview.html = getPanelHtml();
+    panel.iconPath = {
+      light: vscode.Uri.joinPath(mediaRoot, 'logo.png'),
+      dark: vscode.Uri.joinPath(mediaRoot, 'logo.png'),
+    };
+
+    const wordmarkUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, 'logo-wordmark.svg'));
+    panel.webview.html = getPanelHtml(wordmarkUri.toString());
 
     // Run probes in the background; push results into the webview when ready.
     detectAgents(ALL_AGENTS).then((results) => {
@@ -26,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(disposable);
 }
 
-function getPanelHtml(): string {
+function getPanelHtml(wordmarkUri: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -96,7 +103,7 @@ function getPanelHtml(): string {
   </style>
 </head>
 <body>
-  ${getSidebarHtml()}
+  ${getSidebarHtml(wordmarkUri)}
   <div class="resizer" id="resizer"><div class="resizer-handle"></div></div>
   ${getTerminalHtml()}
 
