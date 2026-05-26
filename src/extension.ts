@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { getSidebarHtml } from './webview/sidebar';
 import { getTerminalHtml } from './webview/terminal';
+import { detectAgents } from './extension/agentDetector';
+import { ALL_AGENTS } from './shared/agents';
 
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand('unified-agent-cli.open', () => {
@@ -10,7 +12,15 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.ViewColumn.One,
       { enableScripts: true }
     );
+
     panel.webview.html = getPanelHtml();
+
+    // Run probes in the background; push results into the webview when ready.
+    detectAgents(ALL_AGENTS).then((results) => {
+      if (panel.visible) {
+        panel.webview.postMessage({ type: 'agentAvailability', payload: results });
+      }
+    });
   });
 
   context.subscriptions.push(disposable);
@@ -91,6 +101,44 @@ function getPanelHtml(): string {
   ${getTerminalHtml()}
 
   <script>
+    const vscode = acquireVsCodeApi();
+
+    /**
+     * Global agent availability store.
+     * Key: agentId, Value: boolean | null (null = still detecting).
+     * Any part of the UI can read window.__agentAvailability[agentId].
+     */
+    window.__agentAvailability = {};
+
+    /**
+     * Called once the extension host finishes probing.
+     * Updates the store, then patches every matching agent card in the DOM.
+     */
+    window.__applyAgentAvailability = function(results) {
+      results.forEach(({ agentId, available }) => {
+        window.__agentAvailability[agentId] = available;
+
+        const card = document.getElementById('agent-' + agentId);
+        if (!card) return;
+
+        card.classList.remove('agent-card--detecting');
+        card.classList.add(available ? 'agent-card--available' : 'agent-card--unavailable');
+
+        if (!available) {
+          const name = card.querySelector('.agent-card__name').textContent.trim();
+          card.setAttribute('title', name + ' — not installed');
+        }
+      });
+    };
+
+    // Receive messages from the extension host.
+    window.addEventListener('message', (event) => {
+      const { type, payload } = event.data;
+      if (type === 'agentAvailability') {
+        window.__applyAgentAvailability(payload);
+      }
+    });
+
     const resizer = document.getElementById('resizer');
     const sidebar = document.querySelector('.sidebar');
     let dragging = false;
