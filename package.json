@@ -14,8 +14,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "unified-agent-cli.helloWorld",
-        "title": "Hello World"
+        "command": "unified-agent-cli.open",
+        "title": "Open Unified Agent CLI"
       }
     ]
   },
