@@ -5,14 +5,24 @@ import { detectAgents } from './extension/agentDetector';
 import { ALL_AGENTS } from './shared/agents';
 
 export function activate(context: vscode.ExtensionContext) {
+  let currentPanel: vscode.WebviewPanel | undefined;
+
   const disposable = vscode.commands.registerCommand('unified-agent-cli.open', () => {
+    if (currentPanel) {
+      currentPanel.reveal(vscode.ViewColumn.One);
+      return;
+    }
+
     const mediaRoot = vscode.Uri.joinPath(context.extensionUri, 'media');
     const panel = vscode.window.createWebviewPanel(
       'unifiedAgentCli',
       'Unified Agent CLI',
       vscode.ViewColumn.One,
-      { enableScripts: true, localResourceRoots: [mediaRoot] }
+      { enableScripts: true, localResourceRoots: [mediaRoot], retainContextWhenHidden: true }
     );
+
+    currentPanel = panel;
+    panel.onDidDispose(() => { currentPanel = undefined; }, null, context.subscriptions);
 
     panel.iconPath = {
       light: vscode.Uri.joinPath(mediaRoot, 'logo.png'),
@@ -21,6 +31,40 @@ export function activate(context: vscode.ExtensionContext) {
 
     const wordmarkUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, 'logo-wordmark.svg'));
     panel.webview.html = getPanelHtml(wordmarkUri.toString());
+
+    // Handle messages from the webview — sessions are persisted here, webview is just a view.
+    panel.webview.onDidReceiveMessage((message) => {
+      switch (message.type) {
+        case 'webviewReady': {
+          const sessions: any[] = context.globalState.get('sessions', []);
+          panel.webview.postMessage({ type: 'sessionsUpdated', payload: sessions });
+          break;
+        }
+        case 'sessionAdded': {
+          const sessions: any[] = context.globalState.get('sessions', []);
+          const updated = [...sessions, message.payload];
+          context.globalState.update('sessions', updated);
+          panel.webview.postMessage({ type: 'sessionsUpdated', payload: updated });
+          break;
+        }
+        case 'sessionDeleted': {
+          const sessions: any[] = context.globalState.get('sessions', []);
+          const updated = sessions.filter((s: any) => s.id !== message.payload.id);
+          context.globalState.update('sessions', updated);
+          panel.webview.postMessage({ type: 'sessionsUpdated', payload: updated });
+          break;
+        }
+        case 'sessionRenamed': {
+          const sessions: any[] = context.globalState.get('sessions', []);
+          const updated = sessions.map((s: any) =>
+            s.id === message.payload.id ? { ...s, name: message.payload.name } : s
+          );
+          context.globalState.update('sessions', updated);
+          panel.webview.postMessage({ type: 'sessionsUpdated', payload: updated });
+          break;
+        }
+      }
+    }, null, context.subscriptions);
 
     // Run probes in the background; push results into the webview when ready.
     detectAgents(ALL_AGENTS).then((results) => {
@@ -143,32 +187,27 @@ function getPanelHtml(wordmarkUri: string): string {
       }
     };
 
-    /**
-     * Global session store (mirrors src/shared/sessionStore.ts for the webview).
-     * Key: session id, Value: session object.
-     */
+    // Session store — read-only cache; host (globalState) is the source of truth.
     window.__sessions = {};
     window.__sessionListeners = [];
 
+    function __applySessionUpdate(sessions) {
+      window.__sessions = {};
+      sessions.forEach(function(s) { window.__sessions[s.id] = s; });
+      window.__sessionListeners.forEach(function(fn) { fn(sessions); });
+    }
+
     window.__addSession = function(name, agentId) {
-      const id = String(Date.now());
-      const session = { id, name, agentId, status: 'idle' };
-      window.__sessions[id] = session;
-      window.__sessionListeners.forEach(function(fn) { fn(Object.values(window.__sessions)); });
+      const session = { id: String(Date.now()), name: name, agentId: agentId, status: 'idle' };
       vscode.postMessage({ type: 'sessionAdded', payload: session });
     };
 
     window.__deleteSession = function(id) {
-      delete window.__sessions[id];
-      window.__sessionListeners.forEach(function(fn) { fn(Object.values(window.__sessions)); });
-      vscode.postMessage({ type: 'sessionDeleted', payload: { id } });
+      vscode.postMessage({ type: 'sessionDeleted', payload: { id: id } });
     };
 
     window.__renameSession = function(id, name) {
-      if (!window.__sessions[id]) return;
-      window.__sessions[id] = Object.assign({}, window.__sessions[id], { name: name });
-      window.__sessionListeners.forEach(function(fn) { fn(Object.values(window.__sessions)); });
-      vscode.postMessage({ type: 'sessionRenamed', payload: { id, name } });
+      vscode.postMessage({ type: 'sessionRenamed', payload: { id: id, name: name } });
     };
 
     window.__onSessionsChange = function(listener) {
@@ -183,8 +222,13 @@ function getPanelHtml(wordmarkUri: string): string {
       const { type, payload } = event.data;
       if (type === 'agentAvailability') {
         window.__applyAgentAvailability(payload);
+      } else if (type === 'sessionsUpdated') {
+        __applySessionUpdate(payload);
       }
     });
+
+    // Signal host that the webview is ready so it can push persisted sessions.
+    vscode.postMessage({ type: 'webviewReady' });
 
     const resizer = document.getElementById('resizer');
     const sidebar = document.querySelector('.sidebar');
