@@ -57,7 +57,7 @@ function getPanelHtml(wordmarkUri: string): string {
     }
 
     .sidebar {
-      width: 25%;
+      width: 20%;
       min-width: 120px;
       max-width: 60%;
       height: 100%;
@@ -132,10 +132,50 @@ function getPanelHtml(wordmarkUri: string): string {
         card.classList.add(available ? 'agent-card--available' : 'agent-card--unavailable');
 
         if (!available) {
-          const name = card.querySelector('.agent-card__name').textContent.trim();
-          card.setAttribute('title', name + ' — not installed');
+          const name = card.querySelector('.agent-card__name')?.textContent?.trim();
+          if (name) card.setAttribute('title', name + ' — not installed');
         }
       });
+
+      // Also update the session-creator chips.
+      if (typeof window.__applyChipAvailability === 'function') {
+        window.__applyChipAvailability(results);
+      }
+    };
+
+    /**
+     * Global session store (mirrors src/shared/sessionStore.ts for the webview).
+     * Key: session id, Value: session object.
+     */
+    window.__sessions = {};
+    window.__sessionListeners = [];
+
+    window.__addSession = function(name, agentId) {
+      const id = String(Date.now());
+      const session = { id, name, agentId, status: 'idle' };
+      window.__sessions[id] = session;
+      window.__sessionListeners.forEach(function(fn) { fn(Object.values(window.__sessions)); });
+      vscode.postMessage({ type: 'sessionAdded', payload: session });
+    };
+
+    window.__deleteSession = function(id) {
+      delete window.__sessions[id];
+      window.__sessionListeners.forEach(function(fn) { fn(Object.values(window.__sessions)); });
+      vscode.postMessage({ type: 'sessionDeleted', payload: { id } });
+    };
+
+    window.__renameSession = function(id, name) {
+      if (!window.__sessions[id]) return;
+      window.__sessions[id] = Object.assign({}, window.__sessions[id], { name: name });
+      window.__sessionListeners.forEach(function(fn) { fn(Object.values(window.__sessions)); });
+      vscode.postMessage({ type: 'sessionRenamed', payload: { id, name } });
+    };
+
+    window.__onSessionsChange = function(listener) {
+      window.__sessionListeners.push(listener);
+      return function() {
+        window.__sessionListeners = window.__sessionListeners.filter(function(fn) { return fn !== listener; });
+      };
     };
 
     // Receive messages from the extension host.

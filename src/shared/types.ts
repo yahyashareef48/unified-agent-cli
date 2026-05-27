@@ -21,3 +21,12 @@ export interface AgentAvailability {
   agentId: string;
   available: boolean;
 }
+
+export type SessionStatus = "idle" | "running" | "stopped" | "waiting";
+
+export interface Session {
+  id: string;
+  name: string;
+  agentId: string;
+  status: SessionStatus;
+}
