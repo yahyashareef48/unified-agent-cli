@@ -200,6 +200,7 @@ function getPanelHtml(wordmarkUri: string): string {
     window.__addSession = function(name, agentId) {
       const session = { id: String(Date.now()), name: name, agentId: agentId, status: 'idle' };
       vscode.postMessage({ type: 'sessionAdded', payload: session });
+      return session;
     };
 
     window.__deleteSession = function(id) {

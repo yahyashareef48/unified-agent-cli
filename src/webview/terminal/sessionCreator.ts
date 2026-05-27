@@ -104,7 +104,11 @@ export function getSessionCreatorHtml(): string {
         createBtn.addEventListener('click', function () {
           var name = nameInput.value.trim();
           if (!name || !selectedAgentId) return;
-          if (typeof window.__addSession === 'function') window.__addSession(name, selectedAgentId);
+          if (typeof window.__addSession === 'function') {
+            var session = window.__addSession(name, selectedAgentId);
+            if (typeof window.__setActiveCard === 'function') window.__setActiveCard(session.id);
+            if (typeof window.__openSession === 'function') window.__openSession(session);
+          }
           nameInput.value = '';
           document.querySelectorAll('.agent-chip--selected').forEach(function (c) {
             c.classList.remove('agent-chip--selected');

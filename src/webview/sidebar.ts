@@ -443,6 +443,7 @@ export function getSidebarHtml(wordmarkUri: string): string {
               el.classList.toggle('session-card--active', el.dataset.sessionId === id);
             });
           }
+          window.__setActiveCard = setActiveCard;
 
           /* ── render ──────────────────────────────────────────────────── */
           function renderSessions(sessions) {
