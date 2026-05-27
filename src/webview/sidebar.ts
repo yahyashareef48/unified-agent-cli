@@ -126,6 +126,17 @@ export function getSidebarHtml(wordmarkUri: string): string {
           border-color: color-mix(in srgb, var(--agent-color) 25%, transparent);
         }
 
+        .session-card--active {
+          background: color-mix(in srgb, var(--agent-color) 12%, var(--vscode-sideBar-background, #1e1e2e));
+          border-color: color-mix(in srgb, var(--agent-color) 40%, transparent);
+        }
+
+        .session-card--active::before {
+          top: 10%;
+          bottom: 10%;
+          opacity: 1;
+        }
+
         .session-card:hover .session-card__actions {
           opacity: 1;
           pointer-events: auto;
@@ -327,6 +338,7 @@ export function getSidebarHtml(wordmarkUri: string): string {
           var AGENTS = ${JSON.stringify(AGENT_META)};
 
           var listEl = document.getElementById('sidebarSessions');
+          var activeSessionId = null;
 
           /* ── helpers ─────────────────────────────────────────────────── */
           function statusLabel(s) {
@@ -376,6 +388,15 @@ export function getSidebarHtml(wordmarkUri: string): string {
               }
             });
 
+            /* ── open session on card click ───────────────────────────── */
+            card.addEventListener('click', function () {
+              if (card.classList.contains('session-card--renaming')) return;
+              setActiveCard(session.id);
+              if (typeof window.__openSession === 'function') {
+                window.__openSession(session);
+              }
+            });
+
             /* ── rename input ─────────────────────────────────────────── */
             var renameInput = card.querySelector('.session-card__rename-input');
             renameInput.addEventListener('keydown', function (e) {
@@ -416,6 +437,13 @@ export function getSidebarHtml(wordmarkUri: string): string {
             return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
           }
 
+          function setActiveCard(id) {
+            activeSessionId = id;
+            listEl.querySelectorAll('.session-card').forEach(function (el) {
+              el.classList.toggle('session-card--active', el.dataset.sessionId === id);
+            });
+          }
+
           /* ── render ──────────────────────────────────────────────────── */
           function renderSessions(sessions) {
             listEl.innerHTML = '';
@@ -435,6 +463,8 @@ export function getSidebarHtml(wordmarkUri: string): string {
             sessions.forEach(function (session) {
               listEl.appendChild(buildCard(session));
             });
+
+            if (activeSessionId) setActiveCard(activeSessionId);
           }
 
           /* ── subscribe to global store ───────────────────────────────── */
@@ -453,9 +483,9 @@ export function getSidebarHtml(wordmarkUri: string): string {
 
           subscribe();
 
-          /* ── footer new-session button (no-op for now) ───────────────── */
+          /* ── footer new-session button ───────────────────────────────── */
           document.getElementById('sidebarNewBtn').addEventListener('click', function () {
-            /* TODO: will be wired up in next step */
+            if (typeof window.__openCreator === 'function') window.__openCreator();
           });
         })();
       </script>

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getSidebarHtml } from './webview/sidebar';
-import { getTerminalHtml } from './webview/terminal';
+import { getTerminalHtml } from './webview/terminal/index';
 import { detectAgents } from './extension/agentDetector';
 import { ALL_AGENTS } from './shared/agents';
 
