@@ -3,6 +3,7 @@ import { getSidebarHtml } from './webview/sidebar';
 import { getTerminalHtml } from './webview/terminal/index';
 import { detectAgents } from './extension/agentDetector';
 import { ALL_AGENTS } from './shared/agents';
+import { PtyManager } from './extension/pty';
 
 export function activate(context: vscode.ExtensionContext) {
   let currentPanel: vscode.WebviewPanel | undefined;
@@ -22,7 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     currentPanel = panel;
-    panel.onDidDispose(() => { currentPanel = undefined; }, null, context.subscriptions);
+    const ptyManager = new PtyManager(panel);
+    panel.onDidDispose(() => { ptyManager.killAll(); currentPanel = undefined; }, null, context.subscriptions);
 
     panel.iconPath = {
       light: vscode.Uri.joinPath(mediaRoot, 'logo.png'),
@@ -61,6 +63,25 @@ export function activate(context: vscode.ExtensionContext) {
           );
           context.globalState.update('sessions', updated);
           panel.webview.postMessage({ type: 'sessionsUpdated', payload: updated });
+          break;
+        }
+        case 'ptySpawn': {
+          const { sessionId, cols, rows } = message.payload;
+          ptyManager.spawn(sessionId, cols, rows);
+          break;
+        }
+        case 'ptyInput': {
+          const { sessionId, data } = message.payload;
+          ptyManager.write(sessionId, data);
+          break;
+        }
+        case 'ptyResize': {
+          const { sessionId, cols, rows } = message.payload;
+          ptyManager.resize(sessionId, cols, rows);
+          break;
+        }
+        case 'ptyKill': {
+          ptyManager.kill(message.payload.sessionId);
           break;
         }
       }
@@ -225,6 +246,10 @@ function getPanelHtml(wordmarkUri: string): string {
         window.__applyAgentAvailability(payload);
       } else if (type === 'sessionsUpdated') {
         __applySessionUpdate(payload);
+      } else if (type === 'ptyData' || type === 'ptyExit') {
+        if (typeof window.__dispatchPtyMessage === 'function') {
+          window.__dispatchPtyMessage(type, event.data);
+        }
       }
     });
 

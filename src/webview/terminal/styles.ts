@@ -386,26 +386,28 @@ export function getTerminalStyles(): string {
       .session-view__body {
         flex: 1;
         display: flex;
-        align-items: center;
-        justify-content: center;
         overflow: hidden;
+        position: relative;
       }
 
-      .session-view__placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        opacity: 0.22;
-        pointer-events: none;
-        user-select: none;
+      .session-view__xterm {
+        position: relative;
+        flex: 1;
+        overflow: hidden;
+        padding: 4px;
       }
 
-      .session-view__placeholder-label {
-        font-size: 14px;
-        font-weight: 500;
-        letter-spacing: 0.01em;
-        color: var(--vscode-editor-foreground);
+      .session-view__xterm .xterm {
+        height: 100%;
+        border-radius: 0 0 10px 10px !important;
+      }
+
+      .session-view__xterm .xterm-viewport::-webkit-scrollbar {
+        display: none;
+      }
+
+      .session-view__xterm .xterm-viewport {
+        scrollbar-width: none;
       }
     </style>
   `;
