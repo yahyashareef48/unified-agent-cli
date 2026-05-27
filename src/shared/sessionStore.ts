@@ -47,7 +47,7 @@ export function addSession(name: string, agentId: string): Session {
 /** Rename an existing session. No-op if id not found. */
 export function renameSession(id: string, name: string): void {
   const idx = _sessions.findIndex((s) => s.id === id);
-  if (idx === -1) return;
+  if (idx === -1) { return; }
   _sessions = _sessions.map((s) => (s.id === id ? { ...s, name: name.trim() } : s));
   _notify();
 }
@@ -55,7 +55,7 @@ export function renameSession(id: string, name: string): void {
 /** Update the status of an existing session. No-op if id not found. */
 export function setSessionStatus(id: string, status: SessionStatus): void {
   const idx = _sessions.findIndex((s) => s.id === id);
-  if (idx === -1) return;
+  if (idx === -1) { return; }
   _sessions = _sessions.map((s) => (s.id === id ? { ...s, status } : s));
   _notify();
 }
@@ -64,5 +64,5 @@ export function setSessionStatus(id: string, status: SessionStatus): void {
 export function deleteSession(id: string): void {
   const before = _sessions.length;
   _sessions = _sessions.filter((s) => s.id !== id);
-  if (_sessions.length !== before) _notify();
+  if (_sessions.length !== before) { _notify(); }
 }
